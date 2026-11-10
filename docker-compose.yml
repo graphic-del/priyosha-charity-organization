@@ -1,0 +1,96 @@
+# Priyosha Charity Organization — Docker Compose.
+#
+# Setup: cp .env.example .env, fill in your real values, then:
+#   docker compose up --build -d
+#
+# Local dev (no .env needed): every value below has a safe local default —
+# frontend http://localhost:3000, gateway http://localhost:8080,
+# ALLOWED_ORIGIN http://localhost:3000, ADMIN_TOKEN empty (admin GETs 403).
+# Production: set ENV=production, FRONTEND_URL / ALLOWED_ORIGIN to your exact
+# frontend URL, NEXT_PUBLIC_API_URL to your gateway URL, and ADMIN_TOKEN to a
+# long random value. The gateway refuses to start in production if
+# ALLOWED_ORIGIN is empty or "*".
+
+services:
+  content-service:
+    build: ./backend/content-service
+    container_name: priyosha-content
+    environment:
+      PORT: "${CONTENT_PORT:-8083}"
+    ports:
+      - "${CONTENT_PORT:-8083}:8083"
+    restart: unless-stopped
+
+  donation-service:
+    build: ./backend/donation-service
+    container_name: priyosha-donation
+    environment:
+      PORT: "${DONATION_PORT:-8081}"
+      DATA_FILE: /data/pledges.json
+      # Same token as the gateway and contact-service. Empty = GET /pledges 403.
+      ADMIN_TOKEN: "${ADMIN_TOKEN:-}"
+    ports:
+      - "${DONATION_PORT:-8081}:8081"
+    volumes:
+      - donation-data:/data
+    restart: unless-stopped
+
+  contact-service:
+    build: ./backend/contact-service
+    container_name: priyosha-contact
+    environment:
+      PORT: "${CONTACT_PORT:-8082}"
+      DATA_FILE: /data/messages.json
+      # Same token as the gateway and donation-service. Empty = GET /messages 403.
+      ADMIN_TOKEN: "${ADMIN_TOKEN:-}"
+    ports:
+      - "${CONTACT_PORT:-8082}:8082"
+    volumes:
+      - contact-data:/data
+    restart: unless-stopped
+
+  api-gateway:
+    build: ./backend/api-gateway
+    container_name: priyosha-gateway
+    environment:
+      PORT: "${GATEWAY_PORT:-8080}"
+      ENV: "${ENV:-development}"
+      CONTENT_SERVICE_URL: http://content-service:8083
+      DONATION_SERVICE_URL: http://donation-service:8081
+      CONTACT_SERVICE_URL: http://contact-service:8082
+      # Exact frontend origin. Local default http://localhost:3000.
+      # In production this MUST be your domain, e.g. https://priyoshacharity.com
+      ALLOWED_ORIGIN: "${ALLOWED_ORIGIN:-http://localhost:3000}"
+      ADMIN_TOKEN: "${ADMIN_TOKEN:-}"
+    ports:
+      - "${GATEWAY_PORT:-8080}:8080"
+    depends_on:
+      - content-service
+      - donation-service
+      - contact-service
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Bake the public gateway + site URLs into the Next.js build.
+        # In production set these in .env, e.g.:
+        #   NEXT_PUBLIC_API_URL=https://api.priyoshacharity.com
+        #   NEXT_PUBLIC_SITE_URL=https://priyoshacharity.com
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-${FRONTEND_URL:-https://priyoshacharity.com}}
+    container_name: priyosha-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-${FRONTEND_URL:-https://priyoshacharity.com}}
+      FRONTEND_URL: ${FRONTEND_URL:-https://priyoshacharity.com}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      - api-gateway
+    restart: unless-stopped
+
+volumes:
+  donation-data:
+  contact-data:

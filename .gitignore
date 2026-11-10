@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Next.js build output
+.next/
+frontend/.next/
+out/
+
+# Environment files — never commit real secrets or tokens.
+# .env.example files are templates and ARE committed.
+.env
+.env.*
+!.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Data — pledges and messages contain names and email addresses
+data/
+*/data/
+backend/*/data/
+**/data/*.json
+
+# Compiled Go binaries (go build ./... drops these in the service dir)
+# NOTE: match the binary file only, not the service directory of the same name.
+backend/api-gateway/api-gateway
+backend/donation-service/donation-service
+backend/contact-service/contact-service
+backend/content-service/content-service
+*.exe
+*.out
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
