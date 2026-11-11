@@ -1,0 +1,40 @@
+# Priyosha Charity Organization — Caddy reverse proxy (EXAMPLE)
+#
+# This file fronts the Next.js frontend (port 3000) and the Go api-gateway
+# (port 8080) with automatic HTTPS. It is an example to copy to your server,
+# not a live deploy.
+#
+# Live domain: priyoshacharity.com
+#   Primary site: https://priyoshacharity.com  ->  localhost:3000
+#   API:          https://api.priyoshacharity.com  ->  localhost:8080
+#   www.priyoshacharity.com redirects to https://priyoshacharity.com
+#
+# 1. In your DNS provider, create A records pointing at your server's IP:
+#      priyoshacharity.com      ->  <server IP>
+#      www.priyoshacharity.com  ->  <server IP>
+#      api.priyoshacharity.com  ->  <server IP>
+# 2. On the server, set DOMAIN in .env to your domain:
+#      DOMAIN=priyoshacharity.com
+#    Caddy reads it from the environment as {$DOMAIN}.
+# 3. Run Caddy with this file, e.g. `caddy run --config deploy/Caddyfile`
+#    or via the caddy Docker image. Caddy obtains and renews Let's Encrypt
+#    certificates automatically — no manual certificate step.
+# 4. Keep ports 80/443 open to the internet; keep 3000/8080 reachable only
+#    from localhost / the proxy.
+#
+# {$DOMAIN} expands from the DOMAIN environment variable (Caddy 2 syntax).
+# If you prefer Nginx, the equivalent is: server_name priyoshacharity.com;
+# proxy_pass http://127.0.0.1:3000 for the site and http://127.0.0.1:8080
+# for /api, plus a www -> bare-domain redirect.
+
+{$DOMAIN} {
+	reverse_proxy localhost:3000
+}
+
+www.{$DOMAIN} {
+	redir https://{$DOMAIN}{uri} permanent
+}
+
+api.{$DOMAIN} {
+	reverse_proxy localhost:8080
+}
