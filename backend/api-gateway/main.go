@@ -20,6 +20,13 @@
 // Admin lists are enforced here AND in the downstream services, using the
 // same ADMIN_TOKEN env var; the gateway forwards the X-Admin-Token header.
 //
+// Security (see SECURITY.md): every response carries security headers
+// (HSTS, nosniff, DENY framing, strict referrer policy, Permissions-Policy
+// and a conservative API Content-Security-Policy). Requests are rate
+// limited per IP — POST /api/pledges and POST /api/messages: 10/minute;
+// GET /api/*: 120/minute (429 with Retry-After when exceeded). Request
+// bodies forwarded to the services are capped at 64 KB.
+//
 // Service addresses come from env vars (defaults are the docker-compose
 // service names, which also work locally if you add them to /etc/hosts —
 // for local runs without Docker, set them to http://localhost:8081 etc).
@@ -29,13 +36,20 @@ package main
 
 import (
 	"crypto/subtle"
+	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
+
+// maxRequestBody is the largest request body the gateway will forward (64 KB).
+const maxRequestBody = 64 * 1024
 
 func env(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
@@ -44,14 +58,127 @@ func env(key, fallback string) string {
 	return fallback
 }
 
+// securityHeaders sets the security headers on every response, including
+// errors. HSTS only takes effect over HTTPS, which Caddy provides in
+// production; setting it here as well is harmless on plain HTTP.
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		// JSON API: nothing may be loaded, framed or submitted from here.
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
+		next.ServeHTTP(w, r)
+	})
+}
+
+// clientIP returns the caller IP. Behind Caddy it is the first entry of
+// X-Forwarded-For; otherwise it is the TCP peer. X-Forwarded-For can be
+// spoofed by a direct caller, so it is used only for rate limiting, never
+// for authentication — admin access always needs X-Admin-Token.
+func clientIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		return strings.TrimSpace(strings.Split(xff, ",")[0])
+	}
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return host
+	}
+	return r.RemoteAddr
+}
+
+// rateLimiter is a small in-memory, per-IP, fixed-window limiter.
+// It is deliberately simple: it protects a small charity site from spam
+// and brute-force floods. It is not a distributed limiter — each gateway
+// replica has its own counters, which is fine at this scale.
+type rateLimiter struct {
+	mu      sync.Mutex
+	buckets map[string]*rateBucket
+}
+
+type rateBucket struct {
+	count  int
+	window time.Time
+}
+
+func newRateLimiter() *rateLimiter {
+	return &rateLimiter{buckets: make(map[string]*rateBucket)}
+}
+
+// allow reports whether key may proceed under limit requests per minute,
+// and how many seconds to wait if not.
+func (l *rateLimiter) allow(key string, limit int) (bool, int) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	now := time.Now()
+	b, ok := l.buckets[key]
+	if !ok || now.Sub(b.window) >= time.Minute {
+		l.buckets[key] = &rateBucket{count: 1, window: now}
+		return true, 0
+	}
+	if b.count >= limit {
+		retry := int((time.Minute - now.Sub(b.window)).Seconds()) + 1
+		if retry < 1 {
+			retry = 1
+		}
+		return false, retry
+	}
+	b.count++
+	// Prune stale buckets so the map cannot grow without bound.
+	if len(l.buckets) > 5000 {
+		for k, v := range l.buckets {
+			if now.Sub(v.window) >= time.Minute {
+				delete(l.buckets, k)
+			}
+		}
+	}
+	return true, 0
+}
+
+// limit enforces the documented limits: POST /api/pledges and
+// POST /api/messages 10/minute per IP; GET /api/* 120/minute per IP.
+// OPTIONS (CORS preflight) and /health are not rate limited.
+func (l *rateLimiter) limit(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodOptions || !strings.HasPrefix(r.URL.Path, "/api/") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		var key string
+		var limit int
+		switch {
+		case r.Method == http.MethodPost && (r.URL.Path == "/api/pledges" || r.URL.Path == "/api/messages"):
+			key = "post:" + clientIP(r)
+			limit = 10
+		case r.Method == http.MethodGet:
+			key = "get:" + clientIP(r)
+			limit = 120
+		default:
+			next.ServeHTTP(w, r)
+			return
+		}
+		if ok, retry := l.allow(key, limit); !ok {
+			w.Header().Set("Retry-After", strconv.Itoa(retry))
+			http.Error(w, fmt.Sprintf("too many requests — please wait %d seconds and try again", retry), http.StatusTooManyRequests)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // proxy forwards the request to target (e.g. http://donation-service:8081/pledges)
 // and copies the response back, preserving status code and JSON body.
 func proxy(target string) http.HandlerFunc {
 	client := &http.Client{Timeout: 10 * time.Second}
 	return func(w http.ResponseWriter, r *http.Request) {
+		if r.ContentLength > maxRequestBody {
+			http.Error(w, "request body too large (max 64 KB)", http.StatusRequestEntityTooLarge)
+			return
+		}
 		var body io.Reader
 		if r.Body != nil {
-			body = r.Body
+			body = http.MaxBytesReader(w, r.Body, maxRequestBody)
 		}
 		req, err := http.NewRequest(r.Method, target, body)
 		if err != nil {
@@ -173,7 +300,18 @@ func main() {
 	mux.HandleFunc("/api/pledges", adminOnlyGet(adminToken, proxy(donation+"/pledges")))
 	mux.HandleFunc("/api/messages", adminOnlyGet(adminToken, proxy(contact+"/messages")))
 
+	limiter := newRateLimiter()
+	handler := securityHeaders(limiter.limit(withCORS(allowedOrigin, mux)))
+
 	log.Printf("api-gateway listening on :%s (env=%s, allowed_origin=%s, admin GET protection: %v)", port, envMode, allowedOrigin, adminToken != "")
 	log.Printf("  content=%s donation=%s contact=%s", content, donation, contact)
-	log.Fatal(http.ListenAndServe(":"+port, withCORS(allowedOrigin, mux)))
+	srv := &http.Server{
+		Addr:              ":" + port,
+		Handler:           handler,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+	log.Fatal(srv.ListenAndServe())
 }

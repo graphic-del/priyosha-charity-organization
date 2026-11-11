@@ -28,13 +28,20 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"log"
+	"math"
 	"net/http"
+	"net/mail"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 )
+
+// maxRequestBody is the largest POST body accepted (64 KB).
+const maxRequestBody = 64 * 1024
 
 type Pledge struct {
 	ID        string    `json:"id"`
@@ -75,6 +82,43 @@ func (s *store) save() {
 	if err := os.WriteFile(s.file, data, 0o644); err != nil {
 		log.Printf("donation-service: could not save pledges: %v", err)
 	}
+}
+
+// securityHeaders sets the security headers on every response.
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
+		next.ServeHTTP(w, r)
+	})
+}
+
+// validEmail checks a plain email address: at most 254 characters, a
+// parseable address, and nothing else (no display name, no angle brackets).
+func validEmail(s string) bool {
+	s = strings.TrimSpace(s)
+	if s == "" || len(s) > 254 || strings.ContainsAny(s, "<> \t\r\n") {
+		return false
+	}
+	addr, err := mail.ParseAddress(s)
+	if err != nil {
+		return false
+	}
+	return addr.Address == s
+}
+
+// validText checks a free-text field: trimmed length within 1..max
+// characters, with no angle brackets (so no HTML/script can be stored).
+func validText(s string, max int) bool {
+	s = strings.TrimSpace(s)
+	if s == "" || utf8.RuneCountInString(s) > max {
+		return false
+	}
+	return !strings.ContainsAny(s, "<>")
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -142,26 +186,39 @@ func main() {
 			writeJSON(w, http.StatusOK, map[string]any{"pledges": out})
 
 		case http.MethodPost:
+			if r.ContentLength > maxRequestBody {
+				http.Error(w, "request body too large (max 64 KB)", http.StatusRequestEntityTooLarge)
+				return
+			}
 			var in struct {
 				Amount    float64 `json:"amount"`
 				Frequency string  `json:"frequency"`
 				Name      string  `json:"name"`
 				Email     string  `json:"email"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-				http.Error(w, "invalid JSON body", http.StatusBadRequest)
+			dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxRequestBody))
+			if err := dec.Decode(&in); err != nil {
+				if strings.Contains(err.Error(), "too large") {
+					http.Error(w, "request body too large (max 64 KB)", http.StatusRequestEntityTooLarge)
+				} else {
+					http.Error(w, "invalid JSON body", http.StatusBadRequest)
+				}
 				return
 			}
-			if in.Amount <= 0 {
-				http.Error(w, "amount must be greater than 0", http.StatusBadRequest)
+			if math.IsNaN(in.Amount) || math.IsInf(in.Amount, 0) || in.Amount < 1 || in.Amount > 100000 {
+				http.Error(w, "amount must be between 1 and 100000", http.StatusBadRequest)
 				return
 			}
 			if in.Frequency != "one-time" && in.Frequency != "monthly" {
 				http.Error(w, "frequency must be 'one-time' or 'monthly'", http.StatusBadRequest)
 				return
 			}
-			if in.Name == "" || in.Email == "" {
-				http.Error(w, "name and email are required", http.StatusBadRequest)
+			if !validText(in.Name, 100) {
+				http.Error(w, "name must be 1–100 characters and must not contain < or >", http.StatusBadRequest)
+				return
+			}
+			if !validEmail(in.Email) {
+				http.Error(w, "email must be a valid email address (max 254 characters)", http.StatusBadRequest)
 				return
 			}
 
@@ -176,8 +233,8 @@ func main() {
 				ID:        time.Now().Format("20060102150405.000000000"),
 				Amount:    in.Amount,
 				Frequency: in.Frequency,
-				Name:      in.Name,
-				Email:     in.Email,
+				Name:      strings.TrimSpace(in.Name),
+				Email:     strings.TrimSpace(in.Email),
 				CreatedAt: time.Now().UTC(),
 			}
 			st.mu.Lock()
@@ -196,5 +253,13 @@ func main() {
 	})
 
 	log.Printf("donation-service listening on :%s (data: %s, admin GET protection: %v)", port, dataFile, adminToken != "")
-	log.Fatal(http.ListenAndServe(":"+port, mux))
+	srv := &http.Server{
+		Addr:              ":" + port,
+		Handler:           securityHeaders(mux),
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+	log.Fatal(srv.ListenAndServe())
 }

@@ -28,12 +28,18 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"net/mail"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 )
+
+// maxRequestBody is the largest POST body accepted (64 KB).
+const maxRequestBody = 64 * 1024
 
 type Message struct {
 	ID        string    `json:"id"`
@@ -74,6 +80,43 @@ func (s *store) save() {
 	if err := os.WriteFile(s.file, data, 0o644); err != nil {
 		log.Printf("contact-service: could not save messages: %v", err)
 	}
+}
+
+// securityHeaders sets the security headers on every response.
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
+		next.ServeHTTP(w, r)
+	})
+}
+
+// validEmail checks a plain email address: at most 254 characters, a
+// parseable address, and nothing else (no display name, no angle brackets).
+func validEmail(s string) bool {
+	s = strings.TrimSpace(s)
+	if s == "" || len(s) > 254 || strings.ContainsAny(s, "<> \t\r\n") {
+		return false
+	}
+	addr, err := mail.ParseAddress(s)
+	if err != nil {
+		return false
+	}
+	return addr.Address == s
+}
+
+// validText checks a free-text field: trimmed length within 1..max
+// characters, with no angle brackets (so no HTML/script can be stored).
+func validText(s string, max int) bool {
+	s = strings.TrimSpace(s)
+	if s == "" || utf8.RuneCountInString(s) > max {
+		return false
+	}
+	return !strings.ContainsAny(s, "<>")
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -140,22 +183,40 @@ func main() {
 			writeJSON(w, http.StatusOK, map[string]any{"messages": out})
 
 		case http.MethodPost:
+			if r.ContentLength > maxRequestBody {
+				http.Error(w, "request body too large (max 64 KB)", http.StatusRequestEntityTooLarge)
+				return
+			}
 			var in struct {
 				Name     string `json:"name"`
 				Email    string `json:"email"`
 				Interest string `json:"interest"`
 				Message  string `json:"message"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-				http.Error(w, "invalid JSON body", http.StatusBadRequest)
+			dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxRequestBody))
+			if err := dec.Decode(&in); err != nil {
+				if strings.Contains(err.Error(), "too large") {
+					http.Error(w, "request body too large (max 64 KB)", http.StatusRequestEntityTooLarge)
+				} else {
+					http.Error(w, "invalid JSON body", http.StatusBadRequest)
+				}
 				return
 			}
-			if in.Name == "" || in.Email == "" || in.Message == "" {
-				http.Error(w, "name, email and message are required", http.StatusBadRequest)
+			if !validText(in.Name, 100) {
+				http.Error(w, "name must be 1–100 characters and must not contain < or >", http.StatusBadRequest)
+				return
+			}
+			if !validEmail(in.Email) {
+				http.Error(w, "email must be a valid email address (max 254 characters)", http.StatusBadRequest)
 				return
 			}
 			if in.Interest != "donate" && in.Interest != "volunteer" && in.Interest != "other" {
-				in.Interest = "other"
+				http.Error(w, "interest must be 'donate', 'volunteer' or 'other'", http.StatusBadRequest)
+				return
+			}
+			if !validText(in.Message, 2000) {
+				http.Error(w, "message must be 1–2000 characters and must not contain < or >", http.StatusBadRequest)
+				return
 			}
 
 			// TODO (real email): no email is sent yet. To notify the team,
@@ -164,10 +225,10 @@ func main() {
 			// the sender's email. Keep the stored copy as the record.
 			m := Message{
 				ID:        time.Now().Format("20060102150405.000000000"),
-				Name:      in.Name,
-				Email:     in.Email,
+				Name:      strings.TrimSpace(in.Name),
+				Email:     strings.TrimSpace(in.Email),
 				Interest:  in.Interest,
-				Message:   in.Message,
+				Message:   strings.TrimSpace(in.Message),
 				CreatedAt: time.Now().UTC(),
 			}
 			st.mu.Lock()
@@ -186,5 +247,13 @@ func main() {
 	})
 
 	log.Printf("contact-service listening on :%s (data: %s, admin GET protection: %v)", port, dataFile, adminToken != "")
-	log.Fatal(http.ListenAndServe(":"+port, mux))
+	srv := &http.Server{
+		Addr:              ":" + port,
+		Handler:           securityHeaders(mux),
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+	log.Fatal(srv.ListenAndServe())
 }
