@@ -3,6 +3,9 @@
 # Setup: cp .env.example .env, fill in your real values, then:
 #   docker compose up --build -d
 #
+# All published ports are bound to 127.0.0.1 (localhost-only). Only Caddy
+# on ports 80/443 is public — nobody on the internet can reach the Go
+# services or the Next.js server directly.
 # Local dev (no .env needed): every value below has a safe local default —
 # frontend http://localhost:3000, gateway http://localhost:8080,
 # ALLOWED_ORIGIN http://localhost:3000, ADMIN_TOKEN empty (admin GETs 403).
@@ -18,7 +21,7 @@ services:
     environment:
       PORT: "${CONTENT_PORT:-8083}"
     ports:
-      - "${CONTENT_PORT:-8083}:8083"
+      - "127.0.0.1:${CONTENT_PORT:-8083}:8083"
     restart: unless-stopped
 
   donation-service:
@@ -30,7 +33,7 @@ services:
       # Same token as the gateway and contact-service. Empty = GET /pledges 403.
       ADMIN_TOKEN: "${ADMIN_TOKEN:-}"
     ports:
-      - "${DONATION_PORT:-8081}:8081"
+      - "127.0.0.1:${DONATION_PORT:-8081}:8081"
     volumes:
       - donation-data:/data
     restart: unless-stopped
@@ -44,7 +47,7 @@ services:
       # Same token as the gateway and donation-service. Empty = GET /messages 403.
       ADMIN_TOKEN: "${ADMIN_TOKEN:-}"
     ports:
-      - "${CONTACT_PORT:-8082}:8082"
+      - "127.0.0.1:${CONTACT_PORT:-8082}:8082"
     volumes:
       - contact-data:/data
     restart: unless-stopped
@@ -63,7 +66,7 @@ services:
       ALLOWED_ORIGIN: "${ALLOWED_ORIGIN:-http://localhost:3000}"
       ADMIN_TOKEN: "${ADMIN_TOKEN:-}"
     ports:
-      - "${GATEWAY_PORT:-8080}:8080"
+      - "127.0.0.1:${GATEWAY_PORT:-8080}:8080"
     depends_on:
       - content-service
       - donation-service
@@ -86,7 +89,7 @@ services:
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-${FRONTEND_URL:-https://priyoshacharity.com}}
       FRONTEND_URL: ${FRONTEND_URL:-https://priyoshacharity.com}
     ports:
-      - "${FRONTEND_PORT:-3000}:3000"
+      - "127.0.0.1:${FRONTEND_PORT:-3000}:3000"
     depends_on:
       - api-gateway
     restart: unless-stopped

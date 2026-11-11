@@ -34,7 +34,7 @@ and animals — especially cats and dogs who suffer the most.
 | Service | Port | Job |
 |---|---|---|
 | `frontend/` | 3000 | Next.js site: hero, mission, The Need, programs, pledge calculator, contact/volunteer form, founder |
-| `backend/api-gateway/` | 8080 | Single entry point; routes `/api/*` to the other services; adds CORS (exact origin only) |
+| `backend/api-gateway/` | 8080 | Single entry point; routes `/api/*` to the other services; adds CORS (exact origin only), security headers, rate limiting |
 | `backend/content-service/` | 8083 | `GET /stats`, `GET /programs`, `GET /health` — the figures and programme data |
 | `backend/donation-service/` | 8081 | `POST /pledges` (public), `GET /pledges` (**admin only** — `X-Admin-Token`), `GET /health` — records pledges |
 | `backend/contact-service/` | 8082 | `POST /messages` (public), `GET /messages` (**admin only** — `X-Admin-Token`), `GET /health` — records contact/volunteer messages |
@@ -196,6 +196,31 @@ documented there.
 | `ADMIN_TOKEN` | gateway, donation, contact | *(empty)* | Shared secret for `GET /pledges` and `GET /messages` (`X-Admin-Token` header). If empty, those GETs always return **403** |
 | `DATA_FILE` | donation/contact services | `./data/pledges.json` / `./data/messages.json` | JSON file where records persist |
 
+## Security
+
+**No site is 100% unhackable** — but this one is hardened in layers.
+See [SECURITY.md](SECURITY.md) for the full model, how to report a
+security issue, and the pre-launch checklist.
+
+- **Security headers** on every response (frontend in
+  `frontend/next.config.mjs`, Go services in each `main.go`): HSTS,
+  `nosniff`, `X-Frame-Options: DENY`, strict referrer policy,
+  `Permissions-Policy`, and a Content-Security-Policy.
+- **Rate limiting** in the gateway (per IP): `POST /api/pledges` and
+  `POST /api/messages` 10/minute; `GET /api/*` 120/minute — over the
+  limit returns **429** with `Retry-After`.
+- **Input checks:** pledges $1–$100,000, valid email, names 1–100 chars;
+  messages 1–2000 chars; `<`/`>` rejected (400). Bodies capped at
+  64 KB; Go servers have read/write timeouts.
+- **Admin lists locked** (`GET /pledges`, `GET /messages` need
+  `X-Admin-Token`, 403 without it) and **CORS locked** to
+  `https://priyoshacharity.com` (gateway refuses to start in production
+  if `ALLOWED_ORIGIN` is empty or `*`).
+- **Server:** only ports 80/443 public; website/API bound to
+  `127.0.0.1`. Full strong-server setup — SSH key only, UFW, fail2ban,
+  automatic updates, Docker, Caddy HTTPS, DNS, optional Cloudflare,
+  backups — is in [deploy/SERVER_SETUP.md](deploy/SERVER_SETUP.md).
+
 ## What to replace before taking real donations
 
 - **Admin lists are locked down, but need a token.** `GET /pledges` and
@@ -235,13 +260,15 @@ documented there.
 ```
 priyosha-charity-code/
 ├── README.md
+├── SECURITY.md            # security model, reporting, pre-launch checklist
 ├── GITHUB_SETUP.md        # how to create the GitHub repo and push
 ├── .env.example           # copy to .env — DOMAIN, URLs, ADMIN_TOKEN, ports
-├── docker-compose.yml
+├── docker-compose.yml     # all ports bound to 127.0.0.1 (localhost-only)
 ├── .gitignore
 ├── deploy/
 │   ├── Caddyfile          # example reverse proxy (site :3000, api :8080, HTTPS)
-│   └── README.md          # DNS A-record + server steps
+│   ├── README.md          # DNS A-record + server steps (summary)
+│   └── SERVER_SETUP.md    # strong-server setup, step by step (Ubuntu 24.04)
 ├── frontend/                 # Next.js (App Router, TypeScript), plain CSS
 │   ├── app/
 │   │   ├── layout.tsx        # metadataBase from NEXT_PUBLIC_SITE_URL / FRONTEND_URL
@@ -281,3 +308,8 @@ priyosha-charity-code/
   production (`ENV=production`) when `ALLOWED_ORIGIN` is empty or `*`.
   `docker compose up` itself was not run (Docker unavailable in the build
   environment) — its YAML was checked and the services were run directly.
+- Security hardening (this update) was verified the same way: `go build`
+  and `go vet` pass for all four services; the frontend builds; security
+  headers are present on gateway and frontend responses; 12 rapid pledge
+  POSTs return 429 for the later ones; invalid pledges/messages return
+  400. See `SECURITY.md` for the checklist.
