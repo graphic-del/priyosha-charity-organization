@@ -1,0 +1,138 @@
+/* Priyosha Charity Organization — brand: deep maroon (#7a2436, sampled from
+   the logo) on clean white. Plain CSS, no framework, so the build stays small
+   and reliable. */
+
+:root {
+  --maroon: #7a2436;
+  --maroon-dark: #5f1a28;
+  --maroon-light: #f9eef0;
+  --ink: #22201f;
+  --muted: #5c5552;
+  --line: #e8dddd;
+  --white: #ffffff;
+  --radius: 14px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--ink);
+  background: var(--white);
+  line-height: 1.6;
+}
+
+a { color: var(--maroon); }
+
+header.site {
+  position: sticky;
+  top: 0;
+  background: var(--white);
+  border-bottom: 1px solid var(--line);
+  z-index: 10;
+}
+.nav {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.nav .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--ink); }
+.nav .brand img { height: 56px; width: auto; }
+.nav .brand strong { font-size: 1.05rem; letter-spacing: 0.02em; }
+.nav .brand small { display: block; color: var(--muted); font-size: 0.8rem; }
+.nav nav { margin-left: auto; display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+.nav nav a { text-decoration: none; color: var(--ink); font-weight: 600; font-size: 0.95rem; }
+.nav nav a:hover { color: var(--maroon); }
+
+.btn {
+  display: inline-block;
+  background: var(--maroon);
+  color: #fff;
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 24px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+}
+.btn:hover { background: var(--maroon-dark); }
+.btn:disabled { opacity: 0.6; cursor: wait; }
+.btn.ghost { background: transparent; color: var(--maroon); border: 2px solid var(--maroon); }
+.btn.ghost:hover { background: var(--maroon-light); }
+
+main { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+section { padding: 56px 0 8px; }
+section h2 { font-size: 1.9rem; margin: 0 0 8px; color: var(--maroon); }
+section > p.lede { font-size: 1.15rem; color: var(--muted); max-width: 720px; }
+
+.hero { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 40px; align-items: center; padding: 64px 0 16px; }
+.hero h1 { font-size: 2.6rem; line-height: 1.15; margin: 0 0 16px; }
+.hero h1 span { color: var(--maroon); }
+.hero p { font-size: 1.15rem; color: var(--muted); }
+.hero img.logo { width: 100%; max-width: 340px; height: auto; justify-self: center; }
+.hero .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 24px; }
+.card { border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; background: #fff; }
+.card h3 { margin: 0 0 6px; }
+.card .figure { font-size: 1.6rem; font-weight: 800; color: var(--maroon); line-height: 1.25; margin: 8px 0; }
+.card p { margin: 6px 0; }
+.card .source { font-size: 0.85rem; color: var(--muted); }
+.warning {
+  margin-top: 20px;
+  background: var(--maroon-light);
+  border-left: 4px solid var(--maroon);
+  border-radius: 8px;
+  padding: 14px 18px;
+}
+
+.calculator, .form-box { border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; margin-top: 24px; background: #fffdfd; }
+.amounts { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+.amounts button {
+  border: 2px solid var(--maroon);
+  background: #fff;
+  color: var(--maroon);
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.amounts button.selected { background: var(--maroon); color: #fff; }
+.freq { display: flex; gap: 16px; margin: 8px 0 16px; font-weight: 600; }
+.pledge-summary { background: var(--maroon-light); border-radius: 10px; padding: 14px 18px; font-size: 1.1rem; }
+.pledge-summary strong { color: var(--maroon); }
+
+form label { display: block; font-weight: 600; margin: 14px 0 4px; }
+form input, form select, form textarea {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid #cbb;
+  border-radius: 8px;
+  font: inherit;
+}
+form textarea { min-height: 110px; }
+.notice { margin-top: 14px; padding: 12px 16px; border-radius: 8px; background: #eef6ee; border: 1px solid #bcd8bc; }
+.notice.error { background: #fdeeee; border-color: #e5b6b6; }
+
+.founder { display: flex; gap: 20px; align-items: flex-start; }
+.founder .initials {
+  flex: 0 0 72px; height: 72px; border-radius: 50%;
+  background: var(--maroon); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; font-weight: 800;
+}
+
+footer.site { border-top: 1px solid var(--line); padding: 32px 20px; text-align: center; color: var(--muted); }
+footer.site img { height: 64px; width: auto; }
+
+@media (max-width: 720px) {
+  .hero { grid-template-columns: 1fr; }
+  .hero h1 { font-size: 2rem; }
+  .nav nav { display: none; }
+}
