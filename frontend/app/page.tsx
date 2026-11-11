@@ -210,79 +210,117 @@ export default function Home() {
           <nav>
             <a href="#need">The Need</a>
             <a href="#programs">Programs</a>
-            <a href="#give">Give</a>
             <a href="#contact">Contact</a>
+            <a className="give-link" href="#give">Give</a>
           </nav>
         </div>
       </header>
 
       <main>
-        <section className="hero">
-          <div>
-            <h1>
-              Better futures for people <span>and animals</span> in Bangladesh.
-            </h1>
-            <p>
-              Priyosha Charity Organization is a US-based nonprofit. We raise charity
-              from around the world to reduce problems in Bangladesh — for people
-              facing hunger and homelessness, and for cats and dogs who suffer the most.
-            </p>
-            <div className="actions">
-              <a className="btn" href="#give">Give</a>
-              <a className="btn ghost" href="#programs">See our programs</a>
+        <section className="hero-band band-maroon">
+          <div className="wrap">
+            <div className="hero">
+              <div>
+                <h1>
+                  Better futures for people <span>and animals</span> in Bangladesh.
+                </h1>
+                <p>
+                  Priyosha Charity Organization is a US-based nonprofit. We raise charity
+                  from around the world to reduce problems in Bangladesh — for people
+                  facing hunger and homelessness, and for cats and dogs who suffer the most.
+                </p>
+                <div className="actions">
+                  <a className="btn light" href="#give">Give</a>
+                  <a className="btn ghost" href="#programs">See our programs</a>
+                </div>
+              </div>
+              <div className="logo-card">
+                <img
+                  className="logo"
+                  src="/logo.png"
+                  alt="Priyosha Charity logo — a person embracing a dog, forming a heart"
+                />
+              </div>
             </div>
           </div>
-          <img
-            className="logo"
-            src="/logo.png"
-            alt="Priyosha Charity logo — a person embracing a dog, forming a heart"
-          />
         </section>
 
-        <section id="mission">
-          <h2>Our mission</h2>
-          <p className="lede">
-            To bring support from around the world to Bangladesh, and turn it into
-            food, shelter and care — for humans and for animals, especially the cats
-            and dogs who suffer the most.
-          </p>
-        </section>
-
-        <section id="need">
-          <h2>The Need in Bangladesh</h2>
-          <p className="lede">
-            The need is large — and the numbers we have are incomplete. We show what
-            is known, what is not known, and where each figure comes from.
-          </p>
-          <div className="cards">
-            {stats.map((s) => (
-              <article className="card" key={s.id}>
-                <h3>{s.title}</h3>
-                <p className="figure">{s.figure}</p>
-                <p>{s.detail}</p>
-                <p className="source">Source: {s.source}</p>
-              </article>
-            ))}
-          </div>
-          <p className="warning">
-            <strong>Please read:</strong> {warning}
-          </p>
-        </section>
-
-        <section id="programs">
-          <h2>Programs</h2>
-          <p className="lede">Three programmes, one goal: a better future for humans and animals.</p>
-          <div className="cards">
-            {programs.map((p) => (
-              <article className="card" key={p.id}>
-                <h3>{p.title}</h3>
-                <p>{p.description}</p>
-                <p className="source">Focus: {p.focus}</p>
-              </article>
-            ))}
+        <section className="band-white" style={{ paddingTop: 0, paddingBottom: 8 }}>
+          <div className="wrap">
+            <div className="impact">
+              <div><strong>18.1 million</strong><span>people facing crisis-level food insecurity</span></div>
+              <div><strong>22,185</strong><span>people counted sleeping in public places</span></div>
+              <div><strong>16.7 lakh</strong><span>dogs estimated in Bangladesh</span></div>
+            </div>
           </div>
         </section>
 
+        <section id="mission" className="band">
+          <div className="wrap">
+            <h2>Our mission</h2>
+            <p className="lede">
+              To bring support from around the world to Bangladesh, and turn it into
+              food, shelter and care — for humans and for animals, especially the cats
+              and dogs who suffer the most.
+            </p>
+            <div className="mission-grid">
+              <div>
+                <h3>Food</h3>
+                <p>Meals and food packs for families who do not have enough to eat.</p>
+              </div>
+              <div>
+                <h3>Shelter</h3>
+                <p>Support for people sleeping rough, and a path to more secure housing.</p>
+              </div>
+              <div>
+                <h3>Care for animals</h3>
+                <p>Food, shelter and basic veterinary care for stray cats and dogs.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="need" className="band-white">
+          <div className="wrap">
+            <h2>The Need in Bangladesh</h2>
+            <p className="lede">
+              The need is large — and the numbers we have are incomplete. We show what
+              is known, what is not known, and where each figure comes from.
+            </p>
+            <div className="cards">
+              {stats.map((s) => (
+                <article className="card" key={s.id}>
+                  <h3>{s.title}</h3>
+                  <p className="figure">{s.figure}</p>
+                  <p>{s.detail}</p>
+                  <p className="source">Source: {s.source}</p>
+                </article>
+              ))}
+            </div>
+            <p className="warning">
+              <strong>Please read:</strong> {warning}
+            </p>
+          </div>
+        </section>
+
+        <section id="programs" className="band">
+          <div className="wrap">
+            <h2>Programs</h2>
+            <p className="lede">Three programmes, one goal: a better future for humans and animals.</p>
+            <div className="cards three">
+              {programs.map((p) => (
+                <article className="card" key={p.id}>
+                  <span className="tag">{p.focus}</span>
+                  <h3>{p.title}</h3>
+                  <p>{p.description}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <div className="wrap">
+          <div className="duo">
         <section id="give">
           <h2>Give — make a pledge</h2>
           <p className="lede">
@@ -431,36 +469,59 @@ export default function Home() {
             </p>
           </div>
         </section>
+          </div>
+        </div>
 
-        <section id="founder">
-          <h2>Our founder</h2>
-          <div className="founder">
-            <div className="initials" aria-hidden="true">SM</div>
-            <div>
-              <h3 style={{ margin: "0 0 6px" }}>Md Shadman Mahmood</h3>
-              <p>
-                Md Shadman Mahmood founded Priyosha Charity Organization to help the
-                people and animals of Bangladesh who suffer the most — people facing
-                hunger and sleeping in public places, and the cats and dogs with no
-                one to care for them. The organization is based in the United States
-                and raises charity from around the world for that work.
-              </p>
+        <section id="founder" className="band">
+          <div className="wrap">
+            <h2>Our founder</h2>
+            <div className="founder-card">
+              <div className="initials" aria-hidden="true">SM</div>
+              <div>
+                <h3 style={{ margin: "0 0 6px" }}>Md Shadman Mahmood</h3>
+                <p>
+                  Md Shadman Mahmood founded Priyosha Charity Organization to help the
+                  people and animals of Bangladesh who suffer the most — people facing
+                  hunger and sleeping in public places, and the cats and dogs with no
+                  one to care for them. The organization is based in the United States
+                  and raises charity from around the world for that work.
+                </p>
+              </div>
             </div>
           </div>
         </section>
       </main>
 
       <footer className="site">
-        <img src="/logo.png" alt="Priyosha Charity logo" />
-        <p>
-          <strong>Priyosha Charity Organization</strong> — a US-based nonprofit.
-          <br />
-          Better futures for humans and animals in Bangladesh.
-        </p>
-        <p className="source">
-          Figures on this page are shown with their sources, and with the warning
-          that they cannot be added together.
-        </p>
+        <div className="wrap">
+          <div className="foot-grid">
+            <div>
+              <img src="/logo.png" alt="Priyosha Charity logo" />
+              <p>
+                <strong>Priyosha Charity Organization</strong> — a US-based nonprofit.
+                <br />
+                Better futures for humans and animals in Bangladesh.
+              </p>
+            </div>
+            <div>
+              <h3>Explore</h3>
+              <p><a href="#need">The Need</a></p>
+              <p><a href="#programs">Programs</a></p>
+              <p><a href="#give">Give</a></p>
+              <p><a href="#contact">Contact</a></p>
+            </div>
+            <div>
+              <h3>Our work</h3>
+              <p>Food for people</p>
+              <p>Support for people sleeping rough</p>
+              <p>Food and care for cats and dogs</p>
+            </div>
+          </div>
+          <p className="foot-bottom">
+            Figures on this page are shown with their sources, and with the warning
+            that they cannot be added together.
+          </p>
+        </div>
       </footer>
     </>
   );
