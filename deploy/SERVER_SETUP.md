@@ -14,11 +14,17 @@
 
 ## What you are building
 
-- **Server:** Ubuntu 24.04, **4 vCPU / 8 GB RAM / 160 GB SSD** — already
-  very strong for this website (it will handle thousands of visitors a
-  day). DigitalOcean and Hetzner both sell this size; DigitalOcean is
-  about $48/month for it, Hetzner about €15–20/month. Prices change —
-  check the provider's site when you create it.
+- **Server:** Ubuntu 24.04, **1 vCPU / 2 GB RAM / 70 GB SSD** — the
+  DigitalOcean Droplet you already created, named `priyosha`, in
+  New York (NYC3). It costs $16/month for the Droplet, **$19.20/month
+  total with automated backups**. That is enough to launch Priyosha:
+  the site is light and will run well on it. If lots of people start
+  visiting later, you can make it bigger in one click in DigitalOcean
+  (Resize) — you do not need to buy a bigger server now. Size is about
+  speed, not security: the security in this guide stays tight either way.
+  Because 2 GB RAM is tight for building the website, Step 4 adds a
+  2 GB swap file first — do not skip it, or the first build can run
+  out of memory and fail.
 - **On the server:** Docker + Docker Compose run the site (Next.js) and
   the four Go services; Caddy gives you HTTPS automatically.
 - **Domain:** `priyoshacharity.com` (site), `www.priyoshacharity.com`
@@ -27,8 +33,12 @@
 ## Before you start
 
 You need:
-- [ ] A DigitalOcean or Hetzner account (pick one — the steps below work
-      for both).
+- [x] Your DigitalOcean Droplet `priyosha` — already created and Active
+      (NYC3, Ubuntu 24.04, 1 vCPU / 2 GB RAM). Do not create another one.
+- [x] Your Droplet's public IP address — **`159.65.241.137`**. This
+      guide already uses that IP everywhere below, so you can copy the
+      commands as they are. (Private IP `10.108.0.2` is only for inside
+      DigitalOcean — do not use it for DNS or SSH.)
 - [ ] The domain `priyoshacharity.com` and access to its DNS settings
       (where you bought the domain).
 - [ ] A computer with a terminal. On Windows use **Windows Terminal** or
@@ -36,37 +46,29 @@ You need:
 - [ ] About an hour, unhurried. Do not do this at 2 a.m. the night
       before launch.
 
-## Step 1 — Create the server
+## Step 1 — Create the server ✅ Already done — skip this step
 
-1. In DigitalOcean click **Create → Droplets** (in Hetzner: **Create
-   Server**). Choose:
-   - **Image / OS:** Ubuntu 24.04 LTS
-   - **Size:** 4 vCPU / 8 GB RAM / 160 GB SSD (DigitalOcean "Regular"
-     $48/mo size, or Hetzner CX42 / CPX31 — pick the one that matches
-     those numbers).
-   - **Region:** pick one near your visitors — US East is a good default
-     for a US-based nonprofit.
-   - **Authentication: SSH key — choose this, NOT password.** If you do
-     not have an SSH key yet, create one first on your own computer:
-     ```bash
-     ssh-keygen -t ed25519 -C "priyosha-admin"
-     ```
-     Press Enter three times (accept the default location, no passphrase
-     — or set one and keep it safe). Then upload the **public** key
-     (the file ending `.pub`, e.g. `~/.ssh/id_ed25519.pub`) when the
-     provider asks. Never share the private key file (no `.pub`).
-2. Create the server. **Write down its public IP address** — you need it
-   for DNS and for logging in. Example in this guide: `203.0.113.10` —
-   replace it with your real IP everywhere below.
-3. **Success looks like:** the provider shows the server as "Running" /
-   "Active" and gives you an IP address.
+Your server is already created — do not create another one:
+
+- **Name:** `priyosha`
+- **Provider / region:** DigitalOcean, New York (NYC3)
+- **Image / OS:** Ubuntu 24.04 LTS x64
+- **Size:** 1 vCPU / 2 GB RAM / 70 GB SSD — $16/month, $19.20/month
+  total with automated backups
+- **Authentication:** your SSH key (ed25519, made on your Windows PC
+  and added in DigitalOcean as `Priyosha`)
+- **Public IP:** **`159.65.241.137`** — this guide uses it everywhere
+  below, so copy the commands as they are.
+- **Status:** Active
+
+Go straight to Step 2.
 
 ## Step 2 — Log in and make your own user (do this first)
 
 Log in from your computer's terminal (replace the IP):
 
 ```bash
-ssh root@203.0.113.10
+ssh root@159.65.241.137
 ```
 
 The first time it asks "Are you sure you want to continue connecting?"
@@ -92,7 +94,7 @@ and back in as the new user, and use that from now on:
 
 ```bash
 exit
-ssh priyosha@203.0.113.10
+ssh priyosha@159.65.241.137
 ```
 
 ## Step 3 — Lock the front door (SSH, firewall)
@@ -122,7 +124,7 @@ Save with Ctrl+O, Enter, then Ctrl+X to exit. Then restart SSH and test
 sudo systemctl restart ssh
 ```
 
-In the new window, try `ssh priyosha@203.0.113.10` — it should log you
+In the new window, try `ssh priyosha@159.65.241.137` — it should log you
 in with your key and **not** ask for a password. Only if that works,
 close the old window. If it does not work, fix it from the still-open
 window before logging out — otherwise you can lock yourself out.
@@ -144,9 +146,30 @@ ALLOW`, `OpenSSH ALLOW`, and `Default: deny (incoming)`. Ports 3000 and
 (`127.0.0.1` in `docker-compose.yml`), so nobody on the internet can
 reach the website or API directly. Only Caddy (80/443) is public.
 
-## Step 4 — Install Docker, fail2ban, automatic updates
+## Step 4 — Add swap, then install Docker, fail2ban, automatic updates
 
 Still on the server, as `priyosha`:
+
+**4a. Add a 2 GB swap file first — do not skip this.** Your Droplet
+has only 2 GB RAM, and building the Next.js website needs more than
+that for a few minutes. Swap gives it that extra room (slower, but it
+lets the build finish instead of being killed for out-of-memory).
+
+```bash
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+free -h
+```
+
+**Success looks like:** `free -h` shows `Swap: 2.0Gi` (and `Mem:
+1.9Gi` total). If `fallocate` says it is not supported, use
+`sudo dd if=/dev/zero of=/swapfile bs=1M count=2048` instead, then
+run the `chmod` / `mkswap` / `swapon` lines again.
+
+**4b. Install Docker and the security tools:**
 
 ```bash
 sudo apt update && sudo apt upgrade -y
@@ -158,7 +181,7 @@ Log out and back in once so the Docker group takes effect:
 
 ```bash
 exit
-ssh priyosha@203.0.113.10
+ssh priyosha@159.65.241.137
 docker --version
 docker compose version
 ```
@@ -186,6 +209,15 @@ cd priyosha-charity-organization
 **Success looks like:** `git clone` prints "Cloning into..." and the
 folder contains `README.md`, `frontend/`, `backend/`, `deploy/` and
 `docker-compose.yml`. Check with `ls`.
+
+> ⚠️ **Check this before Step 6:** the clone must include the security
+> hardening — run `ls deploy/` and `cat SECURITY.md | head -5`. If
+> `SECURITY.md` or `deploy/SERVER_SETUP.md` is missing, GitHub does
+> not have the latest code yet. Stop here and upload the hardened code
+> to GitHub first (the same web-upload way as before, unzipped — do
+> not upload the zip itself), then delete the cloned folder and run
+> `git clone` again. Do not launch with the old code: it has no rate
+> limits, no security headers, and its pledge/message lists are open.
 
 ## Step 6 — Secrets: make your `.env` (do this carefully)
 
@@ -228,10 +260,13 @@ docker compose up --build -d
 docker compose ps
 ```
 
-The first build takes a few minutes. **Success looks like:** `docker
+The first build takes a few minutes — on this 2 GB Droplet allow
+5–10 minutes, and do not interrupt it. **Success looks like:** `docker
 compose ps` shows five containers — frontend, gateway, content,
 donation, contact — all with status `Up`. If one says `Exited`, read
-its logs before going on:
+its logs before going on. If the frontend build is killed or you see
+"out of memory", check swap is on with `free -h` (Step 4a) and try
+the build again — do not raise the server size just for the build:
 
 ```bash
 docker compose logs --tail 50 <container-name>
@@ -293,13 +328,13 @@ normal.
 
 In your domain/DNS provider (where you bought `priyoshacharity.com`),
 add three **A records**, all pointing at your server's public IP
-(`203.0.113.10` in this guide — use your real IP):
+`159.65.241.137`:
 
 | Name / Host | Type | Value |
 |---|---|---|
-| `@` (or blank — the bare domain) | A | `203.0.113.10` |
-| `www` | A | `203.0.113.10` |
-| `api` | A | `203.0.113.10` |
+| `@` (or blank — the bare domain) | A | `159.65.241.137` |
+| `www` | A | `159.65.241.137` |
+| `api` | A | `159.65.241.137` |
 
 DNS takes minutes to a few hours to spread. Check from your computer:
 
@@ -348,7 +383,7 @@ undo button.
 
 - **Updates (monthly, at least):**
   ```bash
-  ssh priyosha@203.0.113.10
+  ssh priyosha@159.65.241.137
   sudo apt update && sudo apt upgrade -y
   ```
   Security patches install automatically, but check every month that
