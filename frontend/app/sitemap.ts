@@ -8,12 +8,11 @@ const siteUrl =
   "https://priyoshacharity.com";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  return [
-    {
-      url: siteUrl,
-      lastModified: new Date(),
-      changeFrequency: "weekly",
-      priority: 1,
-    },
-  ];
+  const now = new Date();
+  return ["", "/need", "/programs", "/give", "/contact", "/about"].map((path, i) => ({
+    url: `${siteUrl}${path}`,
+    lastModified: now,
+    changeFrequency: "weekly" as const,
+    priority: i === 0 ? 1 : 0.8,
+  }));
 }
