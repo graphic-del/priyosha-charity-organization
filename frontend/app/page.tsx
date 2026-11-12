@@ -6,6 +6,12 @@ import { API_URL, FALLBACK_PROGRAMS, FALLBACK_STATS, type Program, type Stat } f
 export default function Home() {
   const [stats, setStats] = useState<Stat[]>(FALLBACK_STATS);
   const [programs, setPrograms] = useState<Program[]>(FALLBACK_PROGRAMS);
+  const [heroAmount, setHeroAmount] = useState(100);
+  const [heroCustom, setHeroCustom] = useState("");
+  const [heroFreq, setHeroFreq] = useState<"one-time" | "monthly">("one-time");
+
+  const heroEffective = heroCustom ? Number(heroCustom) || 0 : heroAmount;
+  const heroGiveHref = `/give?amount=${heroEffective || 100}&freq=${heroFreq}`;
 
   useEffect(() => {
     fetch(`${API_URL}/api/stats`)
@@ -48,6 +54,50 @@ export default function Home() {
                 alt="Priyosha Charity logo — a person embracing a dog, forming a heart"
               />
             </div>
+          </div>
+
+          <div className="donate-box">
+            <h2>Help people and animals in Bangladesh. Hope starts with you.</h2>
+            <p>
+              Give now to help people facing hunger and homelessness — and the cats
+              and dogs who suffer most — get food, shelter and care.
+            </p>
+            <div className="amounts donate-amounts" role="group" aria-label="Donation amount">
+              {[50, 100, 250, 500, 1000, 2500].map((a) => (
+                <button
+                  type="button"
+                  key={a}
+                  className={!heroCustom && heroAmount === a ? "selected" : ""}
+                  onClick={() => { setHeroAmount(a); setHeroCustom(""); }}
+                >
+                  ${a}
+                </button>
+              ))}
+            </div>
+            <div className="donate-row">
+              <div className="donate-custom">
+                <span aria-hidden="true">$</span>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder="Other"
+                  aria-label="Other amount (USD)"
+                  value={heroCustom}
+                  onChange={(e) => setHeroCustom(e.target.value)}
+                />
+              </div>
+              <a className="btn donate-now" href={heroGiveHref}>Donate Now</a>
+            </div>
+            <div className="freq donate-freq">
+              <label>
+                <input type="radio" name="hero-frequency" checked={heroFreq === "one-time"} onChange={() => setHeroFreq("one-time")} /> One-time
+              </label>
+              <label>
+                <input type="radio" name="hero-frequency" checked={heroFreq === "monthly"} onChange={() => setHeroFreq("monthly")} /> Monthly
+              </label>
+            </div>
+            <p className="donate-note">This records a pledge — no payment is taken on this site yet.</p>
           </div>
         </div>
       </section>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { API_URL } from "../data";
 
 const AMOUNTS = [10, 25, 50, 100, 250];
@@ -15,6 +15,22 @@ export default function GivePage() {
   const [pledgeBusy, setPledgeBusy] = useState(false);
 
   const effectiveAmount = customAmount ? Number(customAmount) || 0 : amount;
+
+  // If the visitor picked an amount in the home-page donate box, open with it selected.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const a = Number(params.get("amount"));
+    if (a && a > 0) {
+      if (AMOUNTS.includes(a)) {
+        setAmount(a);
+        setCustomAmount("");
+      } else {
+        setCustomAmount(String(a));
+      }
+    }
+    const f = params.get("freq");
+    if (f === "monthly" || f === "one-time") setFrequency(f);
+  }, []);
 
   async function submitPledge(e: React.FormEvent) {
     e.preventDefault();
