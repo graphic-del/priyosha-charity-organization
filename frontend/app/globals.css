@@ -95,7 +95,7 @@ section > .wrap > p.lede, section p.lede { font-size: 1.18rem; color: var(--mute
 .band-maroon h2 { color: #fff; }
 .band-maroon p.lede { color: rgba(255, 255, 255, 0.88); }
 
-/* ---- Hero: full-bleed maroon, logo in a white card ---- */
+/* ---- Hero: full-screen, Brooklyn-style big type ---- */
 .hero-band { padding: 0; }
 .hero {
   display: grid;
@@ -104,9 +104,20 @@ section > .wrap > p.lede, section p.lede { font-size: 1.18rem; color: var(--mute
   align-items: center;
   padding: 72px 0;
 }
+.hero-full { min-height: 88vh; padding: 88px 0; }
 .hero h1 { font-size: 3.3rem; line-height: 1.08; margin: 0 0 18px; color: #fff; }
+.hero-full h1 { font-size: 4.6rem; line-height: 1.02; letter-spacing: -0.02em; }
 .hero h1 span { color: var(--gold); }
 .hero p { font-size: 1.22rem; color: rgba(255, 255, 255, 0.92); }
+.hero .hero-sub { font-size: 1.5rem; font-weight: 700; color: #fff; }
+.hero .hero-sub span { color: var(--gold); }
+.eyebrow {
+  text-transform: uppercase; letter-spacing: 0.22em; font-weight: 800;
+  font-size: 0.85rem; color: var(--gold); margin: 0 0 16px;
+}
+.cta-line { font-size: 1.6rem; font-weight: 800; color: #fff; margin: 28px 0 0; }
+.btn.ghost-light { background: transparent; color: #fff; border: 2px solid #fff; box-shadow: none; }
+.btn.ghost-light:hover { background: rgba(255, 255, 255, 0.15); }
 .hero .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
 .hero .logo-card {
   background: #fff;
@@ -130,6 +141,39 @@ section > .wrap > p.lede, section p.lede { font-size: 1.18rem; color: var(--mute
 }
 .impact strong { display: block; font-size: 1.9rem; color: var(--maroon); line-height: 1.2; }
 .impact span { color: var(--muted); font-size: 0.95rem; }
+
+/* ---- Issue tiles: tall, coloured, Brooklyn-style ---- */
+.issue-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-top: 28px; }
+.issue-tile {
+  border-radius: 20px; padding: 28px 24px; color: #fff;
+  min-height: 380px; display: flex; flex-direction: column;
+  box-shadow: var(--shadow);
+}
+.issue-tile.tone-0 { background: linear-gradient(160deg, var(--maroon), var(--maroon-dark)); }
+.issue-tile.tone-1 { background: linear-gradient(160deg, #8a2f45, #5f1a28); }
+.issue-tile.tone-2 { background: linear-gradient(160deg, #a03a52, #7a2436); }
+.issue-tile.tone-3 { background: linear-gradient(160deg, var(--maroon-deep), #2e0a13); }
+.issue-tile .figure { font-size: 2rem; font-weight: 800; line-height: 1.15; margin: 0 0 12px; color: #fff; }
+.issue-tile h3 { margin: 0 0 10px; font-size: 1.35rem; line-height: 1.25; }
+.issue-tile p { margin: 6px 0; color: rgba(255, 255, 255, 0.92); }
+.issue-tile .source { margin-top: auto; padding-top: 14px; font-size: 0.85rem; color: rgba(255, 255, 255, 0.75); }
+
+/* ---- Get involved: large cards ---- */
+.involve-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 28px; }
+.involve-card {
+  background: #fff; border: 1px solid var(--line); border-radius: 20px;
+  overflow: hidden; box-shadow: var(--shadow); display: flex; flex-direction: column;
+}
+.involve-top {
+  height: 140px;
+  background: linear-gradient(135deg, var(--maroon), var(--gold));
+  display: flex; align-items: flex-end; padding: 18px;
+}
+.involve-top .tag { background: #fff; }
+.involve-card h3 { margin: 0; padding: 22px 24px 0; font-size: 1.45rem; }
+.involve-card p { padding: 0 24px; color: var(--muted); flex: 1; }
+.involve-card .btn { margin: 0 24px 24px; align-self: flex-start; }
+.involve-more { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
 
 /* ---- Cards: fill the width, 4 across on desktop ---- */
 .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-top: 28px; }
@@ -247,6 +291,10 @@ footer.site .foot-bottom {
 @media (max-width: 1020px) {
   .cards { grid-template-columns: repeat(2, 1fr); }
   .cards.three { grid-template-columns: repeat(2, 1fr); }
+  .issue-tiles { grid-template-columns: repeat(2, 1fr); }
+  .issue-tile { min-height: 0; }
+  .involve-grid { grid-template-columns: 1fr; }
+  .hero-full h1 { font-size: 3rem; }
   .duo { grid-template-columns: 1fr; }
   .mission-grid { grid-template-columns: 1fr; }
   .impact { grid-template-columns: 1fr; }
@@ -256,6 +304,9 @@ footer.site .foot-bottom {
 @media (max-width: 720px) {
   .hero { grid-template-columns: 1fr; padding: 48px 0; gap: 28px; }
   .hero h1 { font-size: 2.2rem; }
+  .hero-full { min-height: 0; }
+  .hero-full h1 { font-size: 2.6rem; }
+  .issue-tiles { grid-template-columns: 1fr; }
   .cards, .cards.three { grid-template-columns: 1fr; }
   .nav nav { display: none; }
   section { padding: 44px 0; }

@@ -219,19 +219,25 @@ export default function Home() {
       <main>
         <section className="hero-band band-maroon">
           <div className="wrap">
-            <div className="hero">
+            <div className="hero hero-full">
               <div>
+                <p className="eyebrow">Priyosha Charity Organization</p>
                 <h1>
-                  Better futures for people <span>and animals</span> in Bangladesh.
+                  Priyosha backs Bangladesh.
                 </h1>
+                <p className="hero-sub">
+                  Better futures for people <span>and animals</span> in Bangladesh.
+                </p>
                 <p>
                   Priyosha Charity Organization is a US-based nonprofit. We raise charity
                   from around the world to reduce problems in Bangladesh — for people
                   facing hunger and homelessness, and for cats and dogs who suffer the most.
                 </p>
+                <p className="cta-line">Join. Give. Spark Change.</p>
                 <div className="actions">
-                  <a className="btn light" href="#give">Give</a>
-                  <a className="btn ghost" href="#programs">See our programs</a>
+                  <a className="btn light" href="#give">Give now</a>
+                  <a className="btn ghost-light" href="#programs">See our programs</a>
+                  <a className="btn ghost-light" href="#contact">Volunteer</a>
                 </div>
               </div>
               <div className="logo-card">
@@ -282,16 +288,16 @@ export default function Home() {
 
         <section id="need" className="band-white">
           <div className="wrap">
-            <h2>The Need in Bangladesh</h2>
+            <h2>Explore the issues &amp; our impact</h2>
             <p className="lede">
               The need is large — and the numbers we have are incomplete. We show what
               is known, what is not known, and where each figure comes from.
             </p>
-            <div className="cards">
-              {stats.map((s) => (
-                <article className="card" key={s.id}>
-                  <h3>{s.title}</h3>
+            <div className="issue-tiles">
+              {stats.map((s, i) => (
+                <article className={`issue-tile tone-${i % 4}`} key={s.id}>
                   <p className="figure">{s.figure}</p>
+                  <h3>{s.title}</h3>
                   <p>{s.detail}</p>
                   <p className="source">Source: {s.source}</p>
                 </article>
@@ -305,16 +311,23 @@ export default function Home() {
 
         <section id="programs" className="band">
           <div className="wrap">
-            <h2>Programs</h2>
-            <p className="lede">Three programmes, one goal: a better future for humans and animals.</p>
-            <div className="cards three">
+            <h2>Get involved</h2>
+            <p className="lede">Three programmes, one goal: a better future for humans and animals. There is a part for you to play.</p>
+            <div className="involve-grid">
               {programs.map((p) => (
-                <article className="card" key={p.id}>
-                  <span className="tag">{p.focus}</span>
+                <article className="involve-card" key={p.id}>
+                  <div className="involve-top">
+                    <span className="tag">{p.focus}</span>
+                  </div>
                   <h3>{p.title}</h3>
                   <p>{p.description}</p>
+                  <a className="btn" href="#give">Give to this work →</a>
                 </article>
               ))}
+            </div>
+            <div className="involve-more">
+              <a className="btn ghost" href="#contact">Volunteer with us</a>
+              <a className="btn ghost" href="#give">Make a pledge</a>
             </div>
           </div>
         </section>
